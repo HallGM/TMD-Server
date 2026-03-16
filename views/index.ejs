@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyric Mistakes</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Lyric Mistakes</h1>
+
+    <!-- Step 1: Performer selection -->
+    <section id="step-performer">
+      <label for="performer-select">
+        <strong>Who are you?</strong>
+      </label>
+      <select id="performer-select" required>
+        <option value="" disabled selected>Loading performers…</option>
+      </select>
+    </section>
+
+    <!-- Step 2: Medley selection (shown after performer chosen) -->
+    <section id="step-medley" hidden>
+      <label for="medley-select">
+        <strong>Select a medley</strong>
+      </label>
+      <select id="medley-select" required>
+        <option value="" disabled selected>Loading medleys…</option>
+      </select>
+    </section>
+
+    <!-- Lyrics list (shown after medley chosen) -->
+    <section id="step-lyrics" hidden>
+      <div id="lyrics-header">
+        <h2 id="medley-title"></h2>
+        <p id="lyrics-count" class="secondary"></p>
+      </div>
+
+      <div id="lyrics-loading" hidden>
+        <p aria-busy="true">Loading lyrics…</p>
+      </div>
+
+      <form id="lyrics-form">
+        <div id="lyrics-list"></div>
+
+        <div id="save-bar">
+          <button type="submit" id="save-btn">Save annotations</button>
+          <span id="save-status"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Mistake options passed from server -->
+  <script>
+    window.MISTAKE_OPTIONS = <%- JSON.stringify(mistakeOptions) %>;
+  </script>
+  <script src="/app.js"></script>
+</body>
+</html>

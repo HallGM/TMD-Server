@@ -125,19 +125,25 @@ app.get('/api/lyrics', async (req, res) => {
   const notesField = `${performer} Notes`;
 
   try {
+    // Airtable filterByFormula can't filter by linked record ID directly,
+    // so we fetch all and filter in JS. The Lyrics table is bounded in size.
     const records = await fetchAll(TABLES.LYRICS, {
-      filterByFormula: `FIND("${medleyId}", ARRAYJOIN({Medley}))`,
-      fields: ['Name', 'order', mistakeField, notesField],
-      sort: [{ field: 'order', direction: 'asc' }],
+      fields: ['Name', 'order', 'Medley', mistakeField, notesField],
     });
 
-    const lyrics = records.map((r) => ({
-      id: r.id,
-      line: r.get('Name') || '',
-      order: r.get('order') || 0,
-      mistakes: r.get(mistakeField) || [],
-      notes: r.get(notesField) || '',
-    }));
+    const lyrics = records
+      .filter((r) => {
+        const medleys = r.get('Medley');
+        return Array.isArray(medleys) && medleys.includes(medleyId);
+      })
+      .sort((a, b) => (a.get('order') || 0) - (b.get('order') || 0))
+      .map((r) => ({
+        id: r.id,
+        line: r.get('Name') || '',
+        order: r.get('order') || 0,
+        mistakes: r.get(mistakeField) || [],
+        notes: r.get(notesField) || '',
+      }));
 
     res.json(lyrics);
   } catch (err) {

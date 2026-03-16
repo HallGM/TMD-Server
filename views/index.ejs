@@ -43,7 +43,18 @@
       </div>
 
       <form id="lyrics-form">
-        <div id="lyrics-list"></div>
+        <div class="table-wrap">
+          <table class="lyrics-table">
+            <thead>
+              <tr>
+                <th>Lyric</th>
+                <th>Mistakes</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="lyrics-tbody"></tbody>
+          </table>
+        </div>
 
         <div id="save-bar">
           <button type="submit" id="save-btn">Save annotations</button>

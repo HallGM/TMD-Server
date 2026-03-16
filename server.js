@@ -19,6 +19,18 @@ const TABLES = {
   LYRICS: 'tblzrwnA7rhVDF0Yd',
 };
 
+/**
+ * Sanitise HTML from Airtable's `codified text` field.
+ * Only <b> and <i> (and <em>/<strong>) are kept; asterisk-wrapped text
+ * is converted to <em> for records not yet processed by lyricsItalicsAndBold.
+ */
+function formatLyricHtml(str) {
+  if (!str) return '';
+  let html = str.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  html = html.replace(/<(?!\/?(?:b|i|em|strong)\b)[^>]*>/gi, '');
+  return html;
+}
+
 const MISTAKE_OPTIONS = [
   'Melody 🎵',
   'Rhythm 🥁',
@@ -128,7 +140,7 @@ app.get('/api/lyrics', async (req, res) => {
     // Airtable filterByFormula can't filter by linked record ID directly,
     // so we fetch all and filter in JS. The Lyrics table is bounded in size.
     const records = await fetchAll(TABLES.LYRICS, {
-      fields: ['Name', 'order', 'Medley', mistakeField, notesField],
+      fields: ['Name', 'codified text', 'order', 'Medley', mistakeField, notesField],
     });
 
     const lyrics = records
@@ -140,6 +152,7 @@ app.get('/api/lyrics', async (req, res) => {
       .map((r) => ({
         id: r.id,
         line: r.get('Name') || '',
+        formattedLine: formatLyricHtml(r.get('codified text') || r.get('Name') || ''),
         order: r.get('order') || 0,
         mistakes: r.get(mistakeField) || [],
         notes: r.get(notesField) || '',

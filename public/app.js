@@ -3,7 +3,7 @@
 const state = {
   performer: null,   // { id, initials, name }
   medley: null,      // { id, name }
-  lyrics: [],        // [{ id, line, order, mistakes, notes }]
+  lyrics: [],        // [{ id, line, formattedLine, order, mistakes, notes }]
   dirty: new Map(),  // recordId → { mistakes, notes }
 };
 
@@ -13,7 +13,7 @@ const performerSelect = document.getElementById('performer-select');
 const medleySelect    = document.getElementById('medley-select');
 const stepMedley      = document.getElementById('step-medley');
 const stepLyrics      = document.getElementById('step-lyrics');
-const lyricsList      = document.getElementById('lyrics-list');
+const lyricsTbody     = document.getElementById('lyrics-tbody');
 const medleyTitle     = document.getElementById('medley-title');
 const lyricsCount     = document.getElementById('lyrics-count');
 const lyricsLoading   = document.getElementById('lyrics-loading');
@@ -34,7 +34,6 @@ const saveStatus      = document.getElementById('save-status');
     performerSelect.appendChild(opt);
   });
 
-  // Also load medleys in parallel (hidden until needed)
   const medleys = await apiFetch('/api/medleys');
   medleySelect.innerHTML = '<option value="" disabled selected>Select a medley…</option>';
   medleys.forEach(({ id, name }) => {
@@ -51,9 +50,13 @@ performerSelect.addEventListener('change', () => {
   const opt = performerSelect.selectedOptions[0];
   state.performer = { id: opt.dataset.id, initials: opt.value, name: opt.textContent };
   stepMedley.hidden = false;
-  // Reset lyrics if performer changes mid-session
-  if (state.medley) {
-    loadLyrics();
+  if (state.medley) loadLyrics();
+});
+
+// Close any open mistake dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.mistake-dropdown')) {
+    document.querySelectorAll('.mistake-panel').forEach((p) => p.classList.remove('open'));
   }
 });
 
@@ -76,7 +79,7 @@ async function loadLyrics() {
   medleyTitle.textContent = state.medley.name;
   stepLyrics.hidden = false;
   lyricsLoading.hidden = false;
-  lyricsList.innerHTML = '';
+  lyricsTbody.innerHTML = '';
   lyricsCount.textContent = '';
   state.dirty.clear();
   setSaveStatus('');
@@ -98,70 +101,108 @@ async function loadLyrics() {
   } catch (err) {
     lyricsLoading.hidden = true;
     lyricsCount.textContent = 'Error loading lyrics. Please try again.';
+    console.error(err);
   }
 }
 
 function renderLyrics(lyrics) {
-  lyricsList.innerHTML = '';
+  lyricsTbody.innerHTML = '';
 
   lyrics.forEach((lyric) => {
-    const row = document.createElement('article');
-    row.className = 'lyric-row';
-    row.dataset.id = lyric.id;
+    const tr = document.createElement('tr');
+    tr.dataset.id = lyric.id;
 
-    // Line text
-    const lineEl = document.createElement('p');
-    lineEl.className = 'lyric-line';
-    lineEl.textContent = lyric.line;
+    // ── Lyric text cell ──
+    const tdLine = document.createElement('td');
+    tdLine.className = 'lyric-cell';
+    tdLine.innerHTML = lyric.formattedLine || escapeHtml(lyric.line);
 
-    // Mistake checkboxes
-    const mistakesWrap = document.createElement('div');
-    mistakesWrap.className = 'mistake-options';
+    // ── Mistake dropdown cell ──
+    const tdMistake = document.createElement('td');
+    tdMistake.className = 'mistake-cell';
+    tdMistake.appendChild(buildMistakeDropdown(lyric));
 
-    window.MISTAKE_OPTIONS.forEach((option) => {
-      const label = document.createElement('label');
-      label.className = 'mistake-label';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = option;
-      checkbox.checked = lyric.mistakes.includes(option);
-      checkbox.addEventListener('change', () => markDirty(lyric.id));
-
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(' ' + option));
-      mistakesWrap.appendChild(label);
-    });
-
-    // Notes textarea
-    const notesLabel = document.createElement('label');
-    notesLabel.className = 'notes-label';
-
+    // ── Notes cell ──
+    const tdNotes = document.createElement('td');
+    tdNotes.className = 'notes-cell';
     const textarea = document.createElement('textarea');
-    textarea.placeholder = 'Notes (optional)';
-    textarea.rows = 2;
+    textarea.placeholder = 'Notes…';
+    textarea.rows = 1;
     textarea.value = lyric.notes;
     textarea.addEventListener('input', () => markDirty(lyric.id));
+    tdNotes.appendChild(textarea);
 
-    notesLabel.appendChild(textarea);
-
-    row.appendChild(lineEl);
-    row.appendChild(mistakesWrap);
-    row.appendChild(notesLabel);
-    lyricsList.appendChild(row);
+    tr.appendChild(tdLine);
+    tr.appendChild(tdMistake);
+    tr.appendChild(tdNotes);
+    lyricsTbody.appendChild(tr);
   });
 }
 
-function markDirty(recordId) {
-  const row = lyricsList.querySelector(`[data-id="${recordId}"]`);
-  const checkboxes = row.querySelectorAll('input[type="checkbox"]');
-  const textarea = row.querySelector('textarea');
+/** Build a custom multi-select dropdown for mistake options. */
+function buildMistakeDropdown(lyric) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mistake-dropdown';
 
-  const mistakes = Array.from(checkboxes)
-    .filter((cb) => cb.checked)
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'mistake-btn';
+  updateBtnLabel(btn, lyric.mistakes);
+
+  const panel = document.createElement('div');
+  panel.className = 'mistake-panel';
+
+  window.MISTAKE_OPTIONS.forEach((option) => {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = option;
+    cb.checked = lyric.mistakes.includes(option);
+    cb.addEventListener('change', () => {
+      markDirty(lyric.id);
+      updateBtnLabel(btn, getSelectedMistakes(wrap));
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(' ' + option));
+    panel.appendChild(label);
+  });
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.mistake-panel.open').forEach((p) => {
+      if (p !== panel) p.classList.remove('open');
+    });
+    panel.classList.toggle('open');
+  });
+
+  wrap.appendChild(btn);
+  wrap.appendChild(panel);
+  return wrap;
+}
+
+function getSelectedMistakes(dropdownWrap) {
+  return Array.from(dropdownWrap.querySelectorAll('input[type="checkbox"]:checked'))
     .map((cb) => cb.value);
+}
 
-  state.dirty.set(recordId, { mistakes, notes: textarea.value });
+function updateBtnLabel(btn, selected) {
+  if (selected.length === 0) {
+    btn.textContent = 'None ▾';
+    btn.classList.remove('has-value');
+  } else if (selected.length === 1) {
+    btn.textContent = selected[0] + ' ▾';
+    btn.classList.add('has-value');
+  } else {
+    btn.textContent = `${selected.length} selected ▾`;
+    btn.classList.add('has-value');
+  }
+}
+
+function markDirty(recordId) {
+  const tr = lyricsTbody.querySelector(`[data-id="${recordId}"]`);
+  const mistakes = getSelectedMistakes(tr.querySelector('.mistake-dropdown'));
+  const notes = tr.querySelector('textarea').value;
+  state.dirty.set(recordId, { mistakes, notes });
   setSaveStatus('');
 }
 
@@ -210,4 +251,11 @@ async function apiFetch(url, options = {}) {
 
 function setSaveStatus(msg) {
   saveStatus.textContent = msg;
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }

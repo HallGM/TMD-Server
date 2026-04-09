@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TMD — Where We've Played</title>
+
+    <!-- Mapbox GL JS -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+
+    <link rel="stylesheet" href="/map-public.css" />
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <!-- Video popup modal -->
+    <div id="video-modal" class="video-modal hidden" role="dialog" aria-modal="true" aria-label="Performance video">
+      <div class="video-modal-backdrop"></div>
+      <div class="video-modal-content">
+        <div class="video-modal-header">
+          <div class="video-modal-meta">
+            <h2 id="modal-title" class="video-modal-title"></h2>
+            <p id="modal-date" class="video-modal-date"></p>
+            <p id="modal-video-title" class="video-modal-video-title"></p>
+          </div>
+          <button class="video-modal-close" id="modal-close" aria-label="Close video">&times;</button>
+        </div>
+        <div class="video-embed-wrap">
+          <iframe
+            id="video-iframe"
+            src=""
+            title="Performance video"
+            allow="autoplay; encrypted-media"
+            allowfullscreen
+            frameborder="0"
+          ></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.MAPBOX_TOKEN = <%- JSON.stringify(mapboxToken) %>;
+    </script>
+    <script src="/map-public.js"></script>
+  </body>
+</html>

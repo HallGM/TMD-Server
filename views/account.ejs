@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account — Backstage</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <%- include('partials/nav', { activePage: 'account' }) %>
+
+    <main class="container">
+      <h1>Account</h1>
+      <p class="secondary"><%= user.name %> &middot; <%= user.email %> &middot; <span class="role-badge role-<%= user.role %>"><%= user.role.replace('_', ' ') %></span></p>
+
+      <h2>Change password</h2>
+
+      <% if (locals.error) { %>
+        <div role="alert" class="error-banner"><%- error %></div>
+      <% } %>
+      <% if (locals.success) { %>
+        <div role="status" class="success-banner"><%- success %></div>
+      <% } %>
+
+      <form action="/account/password" method="POST" style="max-width: 420px">
+        <label for="currentPassword">
+          Current password
+          <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required />
+        </label>
+
+        <label for="newPassword">
+          New password
+          <input type="password" id="newPassword" name="newPassword" autocomplete="new-password" required minlength="8" />
+        </label>
+
+        <label for="confirmPassword">
+          Confirm new password
+          <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required minlength="8" />
+        </label>
+
+        <button type="submit">Update password</button>
+      </form>
+    </main>
+  </body>
+</html>

@@ -1,201 +1,100 @@
 require("dotenv").config();
+
+// ── Startup guards ────────────────────────────────────────────────────────────
+// Fail immediately in production if critical secrets are missing.
+
+if (!process.env.SESSION_SECRET) {
+  console.error("FATAL: SESSION_SECRET environment variable is not set. Refusing to start.");
+  process.exit(1);
+}
+
 const express = require("express");
-const Airtable = require("airtable");
+const session = require("express-session");
+const MemoryStore = require("memorystore")(session);
 const path = require("path");
 
+const authRouter   = require("./routes/auth");
+const lyricsRouter = require("./routes/lyrics");
+const mapRouter    = require("./routes/map");
+
 const app = express();
+
+// ── Request parsing ───────────────────────────────────────────────────────────
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+
+// ── View engine ───────────────────────────────────────────────────────────────
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+// ── Sessions ──────────────────────────────────────────────────────────────────
+// memorystore is a production-safe in-process session store with LRU eviction.
+// Sessions are lost on dyno restart — acceptable for an internal tool.
 
-const TABLES = {
-  PERFORMERS: "tblDLB60lKGmK9Lv5",
-  MEDLEYS: "tblOfE65slr7lFwxk",
-  LYRICS: "tblzrwnA7rhVDF0Yd",
-};
-
-/**
- * Sanitise HTML from Airtable's `codified text` field.
- * Only <b> and <i> (and <em>/<strong>) are kept; asterisk-wrapped text
- * is converted to <em> for records not yet processed by lyricsItalicsAndBold.
- */
-function formatLyricHtml(str) {
-  if (!str) return "";
-  let html = str.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
-  html = html.replace(/<(?!\/?(?:b|i|em|strong)\b)[^>]*>/gi, "");
-  return html;
-}
-
-const MISTAKE_OPTIONS = ["Melody 🎵", "Rhythm 🥁", "Delivery 🎭", "Lyrics 📚", "Entry 🚦", "Drums 🪘", "Guitar 🎸"];
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Fetch all pages from an Airtable table using the given select options. */
-function fetchAll(tableId, selectOptions = {}) {
-  return new Promise((resolve, reject) => {
-    const records = [];
-    base(tableId)
-      .select(selectOptions)
-      .eachPage(
-        (page, fetchNext) => {
-          records.push(...page);
-          fetchNext();
-        },
-        (err) => {
-          if (err) reject(err);
-          else resolve(records);
-        },
-      );
-  });
-}
-
-/** Batch-update records in groups of 10 (Airtable limit). */
-async function batchUpdate(tableId, updates) {
-  const results = [];
-  for (let i = 0; i < updates.length; i += 10) {
-    const chunk = updates.slice(i, i + 10);
-    const updated = await base(tableId).update(chunk);
-    results.push(...updated);
-  }
-  return results;
-}
-
-// ── Routes ───────────────────────────────────────────────────────────────────
-
-app.get("/", (req, res) => {
-  res.render("index", { mistakeOptions: MISTAKE_OPTIONS });
-});
-
-/** GET /api/performers — returns [{id, initials, name}] */
-app.get("/api/performers", async (req, res) => {
-  try {
-    const records = await fetchAll(TABLES.PERFORMERS, {
-      fields: ["performer", "Name"],
-      sort: [{ field: "Name", direction: "asc" }],
-    });
-
-    const performers = records
-      .filter((r) => r.get("performer"))
-      .map((r) => ({
-        id: r.id,
-        initials: r.get("performer").trim(),
-        name: r.get("Name") || r.get("performer").trim(),
-      }));
-
-    res.json(performers);
-  } catch (err) {
-    console.error("Error fetching performers:", err);
-    res.status(500).json({ error: "Failed to fetch performers" });
-  }
-});
-
-/** GET /api/medleys — returns [{id, name}] */
-app.get("/api/medleys", async (req, res) => {
-  try {
-    const records = await fetchAll(TABLES.MEDLEYS, {
-      fields: ["Name"],
-      sort: [{ field: "Name", direction: "asc" }],
-    });
-
-    const medleys = records.filter((r) => r.get("Name")).map((r) => ({ id: r.id, name: r.get("Name") }));
-
-    res.json(medleys);
-  } catch (err) {
-    console.error("Error fetching medleys:", err);
-    res.status(500).json({ error: "Failed to fetch medleys" });
-  }
-});
-
-/**
- * GET /api/lyrics?medleyId=recXXX&performer=GH
- * Returns lyrics linked to the given medley, sorted by order,
- * with existing mistake/notes values for the given performer pre-loaded.
- */
-app.get("/api/lyrics", async (req, res) => {
-  const { medleyId, performer } = req.query;
-
-  if (!medleyId || !performer) {
-    return res.status(400).json({ error: "medleyId and performer are required" });
-  }
-
-  const mistakeField = `${performer} Mistake`;
-  const notesField = `${performer} Notes`;
-
-  try {
-    // Airtable filterByFormula can't filter by linked record ID directly,
-    // so we fetch all and filter in JS. The Lyrics table is bounded in size.
-    const records = await fetchAll(TABLES.LYRICS, {
-      fields: ["Name", "codified text", "order", "Medley", mistakeField, notesField],
-    });
-
-    const lyrics = records
-      .filter((r) => {
-        const medleys = r.get("Medley");
-        return Array.isArray(medleys) && medleys.includes(medleyId);
-      })
-      .sort((a, b) => (a.get("order") || 0) - (b.get("order") || 0))
-      .map((r) => ({
-        id: r.id,
-        line: r.get("Name") || "",
-        formattedLine: formatLyricHtml(r.get("codified text") || r.get("Name") || ""),
-        order: r.get("order") || 0,
-        mistakes: r.get(mistakeField) || [],
-        notes: r.get(notesField) || "",
-      }));
-
-    res.json(lyrics);
-  } catch (err) {
-    console.error("Error fetching lyrics:", err);
-    res.status(500).json({ error: "Failed to fetch lyrics" });
-  }
-});
-
-/**
- * PATCH /api/lyrics
- * Body: { performer: "GH", records: [{id, mistakes: [...], notes: "..."}] }
- * Updates {performer} Mistake and {performer} Notes for each record.
- */
-app.patch("/api/lyrics", async (req, res) => {
-  const { performer, records } = req.body;
-
-  if (!performer || !Array.isArray(records) || records.length === 0) {
-    return res.status(400).json({ error: "performer and records[] are required" });
-  }
-
-  const mistakeField = `${performer} Mistake`;
-  const notesField = `${performer} Notes`;
-
-  const updates = records.map(({ id, mistakes, notes }) => ({
-    id,
-    fields: {
-      [mistakeField]: Array.isArray(mistakes) ? mistakes : [],
-      [notesField]: notes || "",
+app.use(
+  session({
+    store: new MemoryStore({
+      checkPeriod: 86_400_000, // prune expired entries every 24h
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
-  }));
+  }),
+);
 
-  try {
-    await batchUpdate(TABLES.LYRICS, updates);
-    res.json({ success: true, updated: updates.length });
-  } catch (err) {
-    console.error("Error updating lyrics:", err);
-    res.status(500).json({ error: "Failed to update lyrics" });
-  }
+// ── Global locals ─────────────────────────────────────────────────────────────
+// Makes user and mapboxToken available in all EJS views without explicit passing.
+
+app.use((req, res, next) => {
+  res.locals.user = req.session?.user || null;
+  res.locals.mapboxToken = process.env.MAPBOX_TOKEN || "";
+  next();
+});
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+// Redirect root to /lyrics (auth middleware on that route handles unauthenticated users)
+app.get("/", (req, res) => res.redirect("/lyrics"));
+
+app.use(authRouter);
+app.use(lyricsRouter);
+app.use(mapRouter);
+
+// Redirect legacy favicon.ico requests to the SVG version
+app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
+
+// ── 404 handler ───────────────────────────────────────────────────────────────
+
+app.use((req, res) => {
+  res.status(404).render("error", {
+    title: "Page not found",
+    message: "The page you're looking for doesn't exist.",
+  });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Lyric Mistakes app running on http://localhost:${PORT}`);
+  console.log(`Backstage running on http://localhost:${PORT}`);
 
-  // Keep the Render free tier alive by self-pinging every 14 minutes
+  // Keep the Render free tier alive by self-pinging /map every 14 minutes.
+  // Pinging /map (public) rather than / avoids redirect chains.
   if (process.env.RENDER_EXTERNAL_URL) {
     setInterval(
       () => {
-        fetch(process.env.RENDER_EXTERNAL_URL).catch((err) => console.error("Keep-alive ping failed:", err));
+        fetch(`${process.env.RENDER_EXTERNAL_URL}/map`).catch((err) =>
+          console.error("Keep-alive ping failed:", err),
+        );
       },
       14 * 60 * 1000,
     );

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — Backstage</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="container login-container">
+      <article class="login-card">
+        <hgroup>
+          <h1>Backstage</h1>
+          <p>Truly Medley Deeply</p>
+        </hgroup>
+
+        <% if (locals.error) { %>
+          <div role="alert" class="error-banner"><%- error %></div>
+        <% } %>
+
+        <form action="/login" method="POST">
+          <input type="hidden" name="next" value="<%= locals.next || '/lyrics' %>" />
+
+          <label for="email">
+            Email
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+              autofocus
+            />
+          </label>
+
+          <label for="password">
+            Password
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Your password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+
+          <button type="submit">Log in</button>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

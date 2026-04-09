@@ -1,3 +1,44 @@
+/* ── Pico scale reset ────────────────────────────────────────────────────────── */
+/* Pico v2 defaults feel oversized for a dense internal tool.                    */
+/* Tighten the root font size and override the key spacing/sizing custom props.  */
+
+:root {
+  --pico-font-size: 14px;
+  --pico-line-height: 1.5;
+
+  /* Form elements */
+  --pico-form-element-spacing-vertical: 0.45rem;
+  --pico-form-element-spacing-horizontal: 0.75rem;
+
+  /* Buttons */
+  --pico-button-base-height: 2rem;
+
+  /* Reduce block spacing */
+  --pico-block-spacing-vertical: 1rem;
+  --pico-block-spacing-horizontal: 1rem;
+
+  /* Nav */
+  --pico-nav-element-spacing-vertical: 0.6rem;
+  --pico-nav-element-spacing-horizontal: 0.75rem;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────────── */
+
+.backstage-nav {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.backstage-nav strong {
+  font-size: 0.95rem;
+}
+
+.nav-logout {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
 
 main.container {

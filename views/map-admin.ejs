@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Admin — Backstage</title>
+
+    <!-- Mapbox GL JS -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/map-admin.css" />
+  </head>
+  <body>
+    <%- include('partials/nav', { activePage: 'map-admin' }) %>
+
+    <div class="map-admin-layout">
+
+      <!-- ── Sidebar ── -->
+      <aside class="map-admin-sidebar">
+
+        <!-- Location form -->
+        <section class="sidebar-section">
+          <h2 id="form-heading">Add location</h2>
+
+          <div id="form-error" class="error-banner hidden" role="alert" aria-live="assertive"></div>
+          <div id="form-success" class="success-banner hidden" role="status" aria-live="polite"></div>
+
+          <!-- Geocoding search -->
+          <div class="geocode-wrap" id="geocode-wrap">
+            <label for="geocode-input">Search address / postcode</label>
+            <div class="geocode-input-row">
+              <input
+                type="text"
+                id="geocode-input"
+                placeholder="e.g. Pembroke College Cambridge"
+                autocomplete="off"
+              />
+              <button type="button" id="geocode-btn" class="secondary">Search</button>
+            </div>
+            <ul id="geocode-results" class="geocode-results hidden" role="listbox" aria-label="Geocoding results"></ul>
+          </div>
+
+          <form id="location-form" novalidate>
+            <input type="hidden" id="edit-id" name="id" />
+            <input type="hidden" id="field-lat" name="latitude" />
+            <input type="hidden" id="field-lng" name="longitude" />
+
+            <label for="field-title">
+              Location name <span class="required">*</span>
+              <input type="text" id="field-title" name="title" placeholder="e.g. Pembroke College, Cambridge" required />
+            </label>
+
+            <label for="field-date">
+              Date of gig
+              <input type="date" id="field-date" name="gigDate" />
+            </label>
+
+            <label for="field-video-title">
+              Video title
+              <input type="text" id="field-video-title" name="videoTitle" placeholder="e.g. TMD at Pembroke May Ball" />
+            </label>
+
+            <label for="field-video-url">
+              YouTube URL <span class="required">*</span>
+              <input type="url" id="field-video-url" name="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required />
+            </label>
+
+            <div class="form-coords" id="form-coords-display">
+              <small id="coords-label">No marker placed yet</small>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="form-save-btn">Save location</button>
+              <button type="button" id="form-cancel-btn" class="secondary outline">Cancel</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Location list -->
+        <section class="sidebar-section">
+          <h2>Saved locations <span id="location-count" class="location-count"></span></h2>
+          <div id="location-list-loading" aria-busy="true" hidden>Loading…</div>
+          <ul id="location-list" class="location-list"></ul>
+        </section>
+
+      </aside>
+
+      <!-- ── Map panel ── -->
+      <div class="map-admin-map-wrap">
+        <div id="admin-map"></div>
+        <div class="map-hint" id="map-hint">Search for a location above, then drag the marker to fine-tune its position.</div>
+      </div>
+
+    </div>
+
+    <!-- Delete confirmation dialog -->
+    <dialog id="delete-dialog">
+      <article>
+        <h3>Delete location?</h3>
+        <p id="delete-dialog-name"></p>
+        <p>This cannot be undone.</p>
+        <footer>
+          <button id="delete-confirm-btn" class="contrast">Delete</button>
+          <button id="delete-cancel-btn" class="secondary outline">Cancel</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <script>
+      window.MAPBOX_TOKEN = <%- JSON.stringify(mapboxToken) %>;
+    </script>
+    <script src="/map-admin.js"></script>
+  </body>
+</html>

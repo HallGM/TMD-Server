@@ -9,5 +9,9 @@ services:
         sync: false
       - key: AIRTABLE_BASE_ID
         sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: MAPBOX_TOKEN
+        sync: false
       - key: NODE_ENV
         value: production

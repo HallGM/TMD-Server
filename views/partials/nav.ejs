@@ -1,0 +1,17 @@
+<nav class="container-fluid backstage-nav">
+  <ul>
+    <li><strong>Backstage</strong></li>
+  </ul>
+  <ul>
+    <li><a href="/lyrics" class="<%= locals.activePage === 'lyrics' ? 'active' : '' %>">Lyrics</a></li>
+    <% if (locals.user && (user.role === 'super_admin' || user.role === 'admin')) { %>
+    <li><a href="/map/admin" class="<%= locals.activePage === 'map-admin' ? 'active' : '' %>">Map Admin</a></li>
+    <% } %>
+    <li><a href="/account" class="<%= locals.activePage === 'account' ? 'active' : '' %>">Account</a></li>
+    <li>
+      <form action="/logout" method="POST" style="margin:0">
+        <button type="submit" class="secondary outline nav-logout">Logout</button>
+      </form>
+    </li>
+  </ul>
+</nav>

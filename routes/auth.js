@@ -116,7 +116,14 @@ router.post("/login", async (req, res) => {
       } catch {
         // unparseable — fall back to default
       }
-      res.redirect(safe);
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("Session save error:", saveErr);
+          return res.render("login", { error: "Login failed. Please try again.", next: nextUrl });
+        }
+        res.redirect(safe);
+      });
     });
   } catch (err) {
     console.error("Login error:", err);

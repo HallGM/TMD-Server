@@ -19,6 +19,10 @@ const mapRouter    = require("./routes/map");
 
 const app = express();
 
+// Render terminates HTTPS at the proxy. Trust the first proxy hop so
+// express-session can set secure cookies correctly in production.
+app.set("trust proxy", 1);
+
 // ── Request parsing ───────────────────────────────────────────────────────────
 
 app.use(express.json());
@@ -62,6 +66,11 @@ app.use((req, res, next) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// Lightweight health endpoint for uptime checks / keep-alive pings
+app.get("/healthz", (req, res) => {
+  res.status(204).end();
+});
+
 // Redirect root to /lyrics (auth middleware on that route handles unauthenticated users)
 app.get("/", (req, res) => res.redirect("/lyrics"));
 
@@ -87,12 +96,11 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backstage running on http://localhost:${PORT}`);
 
-  // Keep the Render free tier alive by self-pinging /map every 14 minutes.
-  // Pinging /map (public) rather than / avoids redirect chains.
+  // Keep the Render instance warm by self-pinging a lightweight endpoint.
   if (process.env.RENDER_EXTERNAL_URL) {
     setInterval(
       () => {
-        fetch(`${process.env.RENDER_EXTERNAL_URL}/map`).catch((err) =>
+        fetch(`${process.env.RENDER_EXTERNAL_URL}/healthz`).catch((err) =>
           console.error("Keep-alive ping failed:", err),
         );
       },

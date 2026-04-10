@@ -7,9 +7,7 @@
 
   function extractYouTubeId(url) {
     if (!url) return null;
-    const m = url.match(
-      /(?:youtube\.com\/watch\?(?:.*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/,
-    );
+    const m = url.match(/(?:youtube\.com\/watch\?(?:.*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);
     return m ? m[1] : null;
   }
 
@@ -48,11 +46,7 @@
 
   /** Return all keyboard-focusable elements inside the modal. */
   function getFocusableElements() {
-    return Array.from(
-      modal.querySelectorAll(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    );
+    return Array.from(modal.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'));
   }
 
   function openModal(location) {
@@ -86,12 +80,18 @@
   backdrop.addEventListener("click", closeModal);
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { closeModal(); return; }
+    if (e.key === "Escape") {
+      closeModal();
+      return;
+    }
 
     // Trap Tab / Shift+Tab inside the modal when it is open
     if (e.key === "Tab" && !modal.classList.contains("hidden")) {
       const focusable = getFocusableElements();
-      if (focusable.length === 0) { e.preventDefault(); return; }
+      if (focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
@@ -118,7 +118,7 @@
 
   const map = new mapboxgl.Map({
     container: "map",
-    style: "mapbox://styles/mapbox/dark-v11",
+    style: "mapbox://styles/mapbox/outdoors-v12",
     center: [0, 20],
     zoom: 1.5,
     attributionControl: true,
@@ -136,9 +136,9 @@
   // "water", "national-park", and "landuse" all use plain fill-color strings
   // and are safe to override once after load.
   const COLOUR_OVERRIDES = [
-    { id: "water",         prop: "fill-color", value: "#1a3a5c" },
-    { id: "national-park", prop: "fill-color", value: "#1a3a1a" },
-    { id: "landuse",       prop: "fill-color", value: "#1a3a1a" },
+    { id: "water", prop: "fill-color", value: "#1a5c8a" },
+    { id: "national-park", prop: "fill-color", value: "#2a5c2a" },
+    { id: "landuse", prop: "fill-color", value: "#2a5c2a" },
   ];
 
   function applyMapColours() {
@@ -152,7 +152,6 @@
   // ── Load and render locations ────────────────────────────────────────────────
 
   async function loadLocations() {
-
     let locations;
     try {
       const res = await fetch("/api/locations");

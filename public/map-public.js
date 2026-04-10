@@ -113,9 +113,12 @@
 
   mapboxgl.accessToken = window.MAPBOX_TOKEN;
 
+  // Web Mercator projection limit — Mapbox destabilises beyond this latitude.
+  const MAX_MERCATOR_LAT = 85.051129;
+
   const map = new mapboxgl.Map({
     container: "map",
-    style: "mapbox://styles/mapbox/light-v11",
+    style: "mapbox://styles/mapbox/dark-v11",
     center: [0, 20],
     zoom: 1.5,
     attributionControl: true,
@@ -124,9 +127,32 @@
   // Add zoom and rotation controls
   map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
+  // ── Map colour overrides ─────────────────────────────────────────────────────
+
+  // Only override layers whose paint values are plain strings (not zoom
+  // expressions). Overriding an expression-based paint property mid-render
+  // destabilises the GL context. "land" (the background layer) uses a zoom
+  // expression so we leave it alone — dark-v11's near-black default is fine.
+  // "water", "national-park", and "landuse" all use plain fill-color strings
+  // and are safe to override once after load.
+  const COLOUR_OVERRIDES = [
+    { id: "water",         prop: "fill-color", value: "#1a3a5c" },
+    { id: "national-park", prop: "fill-color", value: "#1a3a1a" },
+    { id: "landuse",       prop: "fill-color", value: "#1a3a1a" },
+  ];
+
+  function applyMapColours() {
+    COLOUR_OVERRIDES.forEach(({ id, prop, value }) => {
+      if (map.getLayer(id)) {
+        map.setPaintProperty(id, prop, value);
+      }
+    });
+  }
+
   // ── Load and render locations ────────────────────────────────────────────────
 
   async function loadLocations() {
+
     let locations;
     try {
       const res = await fetch("/api/locations");
@@ -143,24 +169,52 @@
     const bounds = new mapboxgl.LngLatBounds();
 
     locations.forEach((loc) => {
-      if (loc.latitude == null || loc.longitude == null) return;
+      const lat = loc.latitude;
+      const lng = loc.longitude;
 
-      const lngLat = [loc.longitude, loc.latitude];
+      // Skip records with missing or out-of-range coordinates.
+      // Web Mercator projection breaks beyond ±85.051129° — beyond that
+      // Mapbox destabilises (spinning map, GL crash).
+      if (lat == null || lng == null) return;
+      if (lat <= -MAX_MERCATOR_LAT || lat >= MAX_MERCATOR_LAT || lng < -180 || lng > 180) return;
+
+      const lngLat = [lng, lat];
       bounds.extend(lngLat);
 
-      // Custom marker element
+      const tier = loc.tier || "standard";
+
+      // Build marker element based on tier
       const el = document.createElement("div");
-      el.className = "tmd-marker";
       el.setAttribute("role", "button");
       el.setAttribute("aria-label", loc.title);
       el.setAttribute("tabindex", "0");
+
+      if (tier === "crash") {
+        // Skull emoji — no dot, no background
+        el.className = "tmd-marker tmd-marker--crash";
+        el.innerHTML = '<span class="tmd-marker-inner">💀</span>';
+      } else if (tier === "good") {
+        el.className = "tmd-marker tmd-marker--good";
+        el.innerHTML = '<span class="tmd-marker-inner"></span>';
+      } else {
+        // standard (default)
+        el.className = "tmd-marker tmd-marker--standard";
+        el.innerHTML = '<span class="tmd-marker-inner"></span>';
+      }
 
       el.addEventListener("click", () => openModal(loc));
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") openModal(loc);
       });
 
-      new mapboxgl.Marker({ element: el }).setLngLat(lngLat).addTo(map);
+      new mapboxgl.Marker({
+        element: el,
+        anchor: "center",
+        pitchAlignment: "map",
+        rotationAlignment: "map",
+      })
+        .setLngLat(lngLat)
+        .addTo(map);
     });
 
     // Fit to all markers with padding
@@ -173,5 +227,8 @@
     }
   }
 
-  map.on("load", loadLocations);
+  map.on("load", () => {
+    applyMapColours();
+    loadLocations();
+  });
 })();

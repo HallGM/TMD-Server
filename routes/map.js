@@ -7,6 +7,11 @@ const router = express.Router();
 // ── Airtable ──────────────────────────────────────────────────────────────────
 
 const LOCATIONS_TABLE = "tblijHhtJW0XVEPaa";
+const VALID_TIERS = ["standard", "good", "crash"];
+
+// Web Mercator projection limit — Mapbox uses this projection and will
+// destabilise (spinning map, GL crash) for latitudes beyond this bound.
+const MAX_MERCATOR_LAT = 85.051129;
 
 /** Fetch all location records and return as plain objects. */
 async function fetchAllLocations() {
@@ -15,7 +20,6 @@ async function fetchAllLocations() {
     const records = [];
     base(LOCATIONS_TABLE)
       .select({
-        fields: ["title", "gigDate", "videoTitle", "videoUrl", "latitude", "longitude"],
         sort: [{ field: "gigDate", direction: "desc" }],
       })
       .eachPage(
@@ -26,15 +30,27 @@ async function fetchAllLocations() {
         (err) => {
           if (err) return reject(err);
           resolve(
-            records.map((r) => ({
-              id: r.id,
-              title: r.get("title") || "",
-              gigDate: r.get("gigDate") || null,
-              videoTitle: r.get("videoTitle") || "",
-              videoUrl: r.get("videoUrl") || "",
-              latitude: r.get("latitude") ?? null,
-              longitude: r.get("longitude") ?? null,
-            })),
+            records
+              .map((r) => ({
+                id: r.id,
+                title: r.get("title") || "",
+                gigDate: r.get("gigDate") || null,
+                videoTitle: r.get("videoTitle") || "",
+                videoUrl: r.get("videoUrl") || "",
+                latitude: r.get("latitude") ?? null,
+                longitude: r.get("longitude") ?? null,
+                tier: r.get("tier") || "standard",
+              }))
+              .filter((loc) => {
+                // Only serve records with coordinates renderable by Mapbox.
+                // Web Mercator projection breaks beyond ±85.051129° latitude.
+                const { latitude: lat, longitude: lng } = loc;
+                return (
+                  lat != null && lng != null &&
+                  lat > -MAX_MERCATOR_LAT && lat < MAX_MERCATOR_LAT &&
+                  lng >= -180 && lng <= 180
+                );
+              }),
           );
         },
       );
@@ -72,7 +88,7 @@ function isValidYouTubeUrl(url) {
  * Returns { error } on failure, or { fields } with coerced values on success.
  */
 function validateLocationBody(body) {
-  const { title, gigDate, videoTitle, videoUrl, latitude, longitude } = body;
+  const { title, gigDate, videoTitle, videoUrl, latitude, longitude, tier } = body;
 
   if (!title || !title.trim()) {
     return { error: "title is required" };
@@ -87,12 +103,14 @@ function validateLocationBody(body) {
   if (latitude == null || longitude == null || !isFinite(lat) || !isFinite(lng)) {
     return { error: "latitude and longitude are required" };
   }
-  if (lat < -90 || lat > 90) {
-    return { error: "latitude must be between -90 and 90" };
+  if (lat < -MAX_MERCATOR_LAT || lat > MAX_MERCATOR_LAT) {
+    return { error: `latitude must be between -${MAX_MERCATOR_LAT} and ${MAX_MERCATOR_LAT}` };
   }
   if (lng < -180 || lng > 180) {
     return { error: "longitude must be between -180 and 180" };
   }
+
+  const coercedTier = VALID_TIERS.includes(tier) ? tier : "standard";
 
   return {
     fields: {
@@ -102,6 +120,7 @@ function validateLocationBody(body) {
       videoUrl: videoUrl.trim(),
       latitude: lat,
       longitude: lng,
+      tier: coercedTier,
     },
   };
 }
@@ -116,6 +135,7 @@ function locationRecordToJson(record) {
     videoUrl: record.get("videoUrl"),
     latitude: record.get("latitude"),
     longitude: record.get("longitude"),
+    tier: record.get("tier") || "standard",
   };
 }
 

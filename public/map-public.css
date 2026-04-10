@@ -17,26 +17,69 @@ html, body {
   height: 100%;
 }
 
-/* ── Custom marker ───────────────────────────────────────────────────────────── */
+/* ── Custom markers — shared base ────────────────────────────────────────────── */
 
+/* Outer wrapper: zero-size, transparent — Mapbox translates this element.
+   Never put transitions or transforms on this layer. */
 .tmd-marker {
+  cursor: pointer;
+  width: 0;
+  height: 0;
+}
+
+/* Inner element: the visible dot. Safe to transition because Mapbox
+   never touches this element directly. */
+.tmd-marker-inner {
+  display: block;
+  transition: transform 0.15s ease;
+  transform-origin: center center;
+}
+
+.tmd-marker:hover .tmd-marker-inner {
+  transform: scale(1.35);
+}
+
+.tmd-marker:focus-visible .tmd-marker-inner {
+  outline: 3px solid #0057b7;
+  outline-offset: 3px;
+}
+
+/* ── Tier: standard — small red dot ──────────────────────────────────────────── */
+
+.tmd-marker--standard .tmd-marker-inner {
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #e03c31;
   border: 2.5px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-  cursor: pointer;
-  transition: transform 0.15s ease;
+  /* Centre the dot on the coordinate point */
+  margin-top: -8px;
+  margin-left: -8px;
 }
 
-.tmd-marker:hover {
-  transform: scale(1.35);
+/* ── Tier: good — larger green dot ───────────────────────────────────────────── */
+
+.tmd-marker--good .tmd-marker-inner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2ecc71;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  margin-top: -11px;
+  margin-left: -11px;
 }
 
-.tmd-marker:focus-visible {
-  outline: 3px solid #0057b7;
-  outline-offset: 3px;
+/* ── Tier: crash — skull emoji, no dot ───────────────────────────────────────── */
+
+.tmd-marker--crash .tmd-marker-inner {
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+  /* Centre the emoji on the coordinate point */
+  margin-top: -9px;
+  margin-left: -9px;
 }
 
 /* ── Video modal ─────────────────────────────────────────────────────────────── */

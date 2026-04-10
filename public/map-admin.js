@@ -23,6 +23,7 @@
   const dateField       = document.getElementById("field-date");
   const videoTitleField = document.getElementById("field-video-title");
   const videoUrlField   = document.getElementById("field-video-url");
+  const tierField       = document.getElementById("field-tier");
   const coordsLabel     = document.getElementById("coords-label");
   const saveBtn         = document.getElementById("form-save-btn");
   const cancelBtn       = document.getElementById("form-cancel-btn");
@@ -184,6 +185,7 @@
     editIdField.value = "";
     latField.value = "";
     lngField.value = "";
+    tierField.value = "standard";
     coordsLabel.textContent = "No marker placed yet";
     editingId = null;
     formHeading.textContent = "Add location";
@@ -222,6 +224,7 @@
       videoUrl,
       latitude: parseFloat(lat),
       longitude: parseFloat(lng),
+      tier: tierField.value || "standard",
     };
 
     saveBtn.setAttribute("aria-busy", "true");
@@ -321,6 +324,7 @@
     dateField.value = loc.gigDate || "";
     videoTitleField.value = loc.videoTitle || "";
     videoUrlField.value = loc.videoUrl || "";
+    tierField.value = loc.tier || "standard";
     latField.value = loc.latitude != null ? loc.latitude : "";
     lngField.value = loc.longitude != null ? loc.longitude : "";
 

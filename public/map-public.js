@@ -129,24 +129,18 @@
 
   // ── Map colour overrides ─────────────────────────────────────────────────────
 
-  // Only override layers whose paint values are plain strings (not zoom
-  // expressions). Overriding an expression-based paint property mid-render
-  // destabilises the GL context. "land" (the background layer) uses a zoom
-  // expression so we leave it alone — dark-v11's near-black default is fine.
-  // "water", "national-park", and "landuse" all use plain fill-color strings
-  // and are safe to override once after load.
-  const COLOUR_OVERRIDES = [
-    { id: "water", prop: "fill-color", value: "#1a5c8a" },
-    { id: "national-park", prop: "fill-color", value: "#2a5c2a" },
-    { id: "landuse", prop: "fill-color", value: "#2a5c2a" },
-  ];
+  // Map colour overrides disabled for outdoors-v12 style — it has natural,
+  // visible land/water contrast and distinct layer structure that differs
+  // from dark-v11. The style's native colours are preferable.
+  const COLOUR_OVERRIDES = [];
 
   function applyMapColours() {
-    COLOUR_OVERRIDES.forEach(({ id, prop, value }) => {
-      if (map.getLayer(id)) {
-        map.setPaintProperty(id, prop, value);
-      }
-    });
+    // No-op for outdoors style — using native colours
+    // COLOUR_OVERRIDES.forEach(({ id, prop, value }) => {
+    //   if (map.getLayer(id)) {
+    //     map.setPaintProperty(id, prop, value);
+    //   }
+    // });
   }
 
   // ── Load and render locations ────────────────────────────────────────────────
